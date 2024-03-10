@@ -34,6 +34,8 @@ if (UniversalBinary)
     set(CMAKE_OSX_ARCHITECTURES "x86_64;arm64" CACHE INTERNAL "")
 endif ()
 
+set(CPM_JUCE_SOURCE "../../JUCE" CACHE STRING "Path to the JUCE source code")
+
 #static linking in Windows
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
@@ -54,7 +56,7 @@ if (${BUILD_JUCE_PROTOTYPE_EXAMPLES})
 endif ()
 
 #optionally, we're also adding the unit tests:
-option(BUILD_UNIT_TESTS "Build JUCE prototype examples" ON)
+option(BUILD_UNIT_TESTS "Build JUCE prototype examples" OFF)
 
 if (BUILD_UNIT_TESTS)
     enable_testing()
