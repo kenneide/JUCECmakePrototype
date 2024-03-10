@@ -55,6 +55,8 @@ if (${BUILD_JUCE_PROTOTYPE_EXAMPLES})
     add_subdirectory(Plugins)
 endif ()
 
+add_subdirectory(LevelMatch)
+
 #optionally, we're also adding the unit tests:
 option(BUILD_UNIT_TESTS "Build JUCE prototype examples" OFF)
 
