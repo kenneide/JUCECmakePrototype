@@ -3,7 +3,7 @@
 
 LevelMatch::LevelMatch()
     : PluginHelpers::ProcessorBase(getIoLayout())
-    , m_matchingGain(1.0f)
+    , m_appliedGain(1.0f)
     , m_instantInputPower(0.0f)
     , m_instantReferencePower(0.0f)
     , m_alpha(0.99f)
@@ -21,12 +21,19 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
 
     auto numberOfSamples = buffer.getNumSamples();
     auto numberOfChannels = buffer.getNumChannels();
-    auto refererencePtr = inputPtr + 2; // stereo assumed
 
-    for (int channel = 0; channel < numberOfChannels; ++channel)
+    static constexpr auto NUM_STEREO = 2; // stereo assumed
+
+    // Ensure we have enough channels for reference
+    if (numberOfChannels < NUM_STEREO * 2)
+    {
+        return;
+    }
+
+    for (int channel = 0; channel < NUM_STEREO; ++channel)
     {
         auto* input = inputPtr[channel];
-        auto* reference = refererencePtr[channel];
+        auto* reference = inputPtr[channel + NUM_STEREO];
 
         for (int sample = 0; sample < numberOfSamples; ++sample)
         {
@@ -38,30 +45,30 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
 
-    if (parameters.measureInput->get())
+    if (true)
     {
         m_measureInputPowerDb = 10.0f * std::log10(m_instantInputPower);
-        m_matchingGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
+        m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
 
-        m_matchingGainDb = std::clamp(m_matchingGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
-        m_matchingGain = std::pow(10.0f, m_matchingGainDb / 20.0f);
+        m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
+        m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
     }
 
-    if (parameters.measureReference->get())
+    if (true)
     {
         m_measureReferencePowerDb = 10.0f * std::log10(m_instantReferencePower);
-        m_matchingGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
-        m_matchingGainDb = std::clamp(m_matchingGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
-        m_matchingGain = std::pow(10.0f, m_matchingGainDb / 20.0f);
+        m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
+        m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
+        m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
     }
 
-    if (!parameters.applyGain->get())
+    if (true)
     {
         return;
     }
 
     // apply the gain to the input signal to match the lufs of the reference signal
-    buffer.applyGain(m_matchingGain);
+    buffer.applyGain(m_appliedGain);
 }
 
 juce::AudioProcessorEditor* LevelMatch::createEditor()
@@ -119,6 +126,8 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 
 bool LevelMatch::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
+    return true;
+
     juce::AudioChannelSet inputChannels = layouts.getMainInputChannelSet();
     juce::AudioChannelSet outputChannels = layouts.getMainOutputChannelSet();
 

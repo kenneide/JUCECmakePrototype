@@ -3,42 +3,43 @@
 
 LevelMatchEditor::LevelMatchEditor(LevelMatch& p)
     : AudioProcessorEditor(&p)
-    , editor(p)
-    , m_gainLabel("gainLabel", "Applied Gain:")
-    , m_gainValueLabel("gainValueLabel", "")
+    , m_appliedGainDb("Applied Gain", 0, "dB")
+    , m_inputPowerDb("Input Power", 0, "dB")
+    , m_referencePowerDb("Reference Power", 0, "dB")
+    , value(0.0f)
+
 {
-
-    auto levelMatch = dynamic_cast<LevelMatch*>(getAudioProcessor());
-
-    addAndMakeVisible(m_gainValueLabel);
-    m_gainValueLabel.setText(
-        juce::String::formatted("%4.1f [dB]", levelMatch->getMatchingGainDb()),
-        juce::dontSendNotification);
-    m_gainValueLabel.setColour(juce::Label::textColourId, juce::Colours::white);
-
-    addAndMakeVisible(m_gainLabel);
-    m_gainValueLabel.attachToComponent(&m_gainLabel, true);
-
-    addAndMakeVisible(editor);
-
-    //addAndMakeVisible(m_button);
-    //m_button.setButtonText("Reset");
-
+    addAndMakeVisible(m_appliedGainDb);
+    addAndMakeVisible(m_inputPowerDb);
+    addAndMakeVisible(m_referencePowerDb);
 
     setSize(400, 300);
+
+    static constexpr auto TIMER_INTERVAL_MS = 100;
+
+    startTimer(TIMER_INTERVAL_MS);
 }
 
 void LevelMatchEditor::paint(juce::Graphics& g)
 {
     g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-    auto levelMatch = dynamic_cast<LevelMatch*>(getAudioProcessor());
-    g.drawFittedText (juce::String(levelMatch->getMatchingGainDb()), getLocalBounds(), juce::Justification::centred, 1);
+}
+
+void LevelMatchEditor::timerCallback()
+{
+    LevelMatch& processor = static_cast<LevelMatch&>(processor);
+
+    m_appliedGainDb.setValue(processor.getAppliedGainDb());
+    m_inputPowerDb.setValue(processor.getInputPowerDb());
+    m_referencePowerDb.setValue(processor.getReferencePowerDb());
 }
 
 void LevelMatchEditor::resized()
 {
-    editor.setBounds(getLocalBounds());
-    m_gainValueLabel.setBounds(0, 10, 100, 20);
-    m_button.setBounds(0, 40, 100, 20);
-    m_gainLabel.setBounds (0, 40, 100, 20);
+    auto area = getLocalBounds();
+    auto quarterHeight = area.getHeight() / 4;
+
+    m_appliedGainDb.setBounds(area.removeFromTop(quarterHeight));
+    m_inputPowerDb.setBounds(area.removeFromTop(quarterHeight));
+    m_referencePowerDb.setBounds(area.removeFromTop(quarterHeight));
 }
