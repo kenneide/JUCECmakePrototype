@@ -8,8 +8,7 @@ namespace PluginHelpers
 
 struct ProcessorBase : juce::AudioProcessor
 {
-    ProcessorBase();
-    explicit ProcessorBase(const BusesProperties& ioLayouts);
+    explicit ProcessorBase(const BusesProperties& ioLayouts = getDefaultProperties());
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;

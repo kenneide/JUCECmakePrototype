@@ -2,10 +2,6 @@
 
 namespace PluginHelpers
 {
-ProcessorBase::ProcessorBase()
-    : juce::AudioProcessor(getDefaultProperties())
-{
-}
 
 ProcessorBase::ProcessorBase(const BusesProperties& ioLayouts)
     : AudioProcessor(ioLayouts)

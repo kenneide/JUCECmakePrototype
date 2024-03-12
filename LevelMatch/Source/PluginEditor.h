@@ -11,7 +11,8 @@ private:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    juce::GenericAudioProcessorEditor editor {processor};
+    juce::GenericAudioProcessorEditor editor;
     juce::Label m_gainLabel;
     juce::Label m_gainValueLabel;
+    juce::TextButton m_button;
 };

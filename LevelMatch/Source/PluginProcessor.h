@@ -14,10 +14,25 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    float getMatchingGain() const { return m_matchingGain; }
-    void setMatchingGain(float gain) { m_matchingGain = gain; }
+    float getMatchingGainDb() const { return m_matchingGainDb; }
+
+    bool isBusesLayoutSupported (const BusesLayout&) const override;
 
 private:
+    static BusesProperties getIoLayout();
+
+    static constexpr auto MAX_GAIN_DB = 24.0f;
+    static constexpr auto MIN_GAIN_DB = -24.0f;
+
     Parameters parameters;
+
     float m_matchingGain;
+
+    float m_instantInputPower;
+    float m_instantReferencePower;
+    float m_alpha;
+
+    float m_measureInputPowerDb;
+    float m_measureReferencePowerDb;
+    float m_matchingGainDb;
 };
