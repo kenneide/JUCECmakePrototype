@@ -5,6 +5,15 @@
 class LevelMatch : public PluginHelpers::ProcessorBase
 {
 public:
+    enum class Status
+    {
+        OK = 0,
+        ONE_CHANNEL,
+        TWO_CHANNELS,
+        THREE_CHANNELS,
+        FOUR_CHANNELS
+    };
+
     LevelMatch();
 
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
@@ -19,6 +28,8 @@ public:
     float getAppliedGainDb() const { return m_appliedGainDb; }
     float getInputPowerDb() const { return m_measureInputPowerDb; }
     float getReferencePowerDb() const { return m_measureReferencePowerDb; }
+
+    Status getStatus() const { return m_status; }
 
 private:
     static BusesProperties getIoLayout();
@@ -37,4 +48,6 @@ private:
     float m_measureInputPowerDb;
     float m_measureReferencePowerDb;
     float m_appliedGainDb;
+
+    Status m_status;
 };

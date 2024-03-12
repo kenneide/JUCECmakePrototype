@@ -27,6 +27,7 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
     // Ensure we have enough channels for reference
     if (numberOfChannels < NUM_STEREO * 2)
     {
+        m_status = static_cast<Status>(numberOfChannels);
         return;
     }
 

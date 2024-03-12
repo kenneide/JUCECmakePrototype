@@ -51,5 +51,7 @@ private:
     DisplayedFloatingPointValue m_inputPowerDb;
     DisplayedFloatingPointValue m_referencePowerDb;
 
+    juce::Label m_debugMessage;
+
     float value;
 };
