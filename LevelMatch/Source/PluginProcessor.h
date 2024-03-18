@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Parameters.h"
+#include <shared_plugin_helpers/shared_plugin_helpers.h>
 
 class LevelMatch : public PluginHelpers::ProcessorBase
 {
@@ -31,13 +31,19 @@ public:
 
     Status getStatus() const { return m_status; }
 
+    juce::AudioProcessorValueTreeState& getValueStateTree() { return m_parameterState; }
+
 private:
+    static constexpr auto kMeasureReference = "measureReference";
+    static constexpr auto kMeasureInput = "measureInput";
+    static constexpr auto kApplyGain = "applyGain";
+
     static BusesProperties getIoLayout();
 
     static constexpr auto MAX_GAIN_DB = 24.0f;
     static constexpr auto MIN_GAIN_DB = -24.0f;
 
-    Parameters parameters;
+    juce::AudioProcessorValueTreeState m_parameterState;
 
     float m_appliedGain;
 

@@ -35,6 +35,32 @@ private:
     const char* m_unit;
 };
 
+class LabelledToggle : public juce::Component
+{
+public:
+    LabelledToggle(juce::String name, bool value)
+        : m_toggle(name)
+    {
+        m_toggle.setToggleState(value, juce::dontSendNotification);
+        addAndMakeVisible(m_toggle);
+        addAndMakeVisible(m_label);
+    }
+
+    void resized() override
+    {
+        auto area = getLocalBounds();
+        m_toggle.setBounds(area.removeFromLeft(area.getWidth() / 2));
+        m_label.setBounds(area);
+    }
+
+    juce::ToggleButton& getButton() { return m_toggle; }
+
+    bool getToggleState() const { return m_toggle.getToggleState(); }
+private:
+    juce::ToggleButton m_toggle;
+    juce::Label m_label;
+};
+
 class LevelMatchEditor
     : public juce::AudioProcessorEditor
     , public juce::Timer
@@ -51,7 +77,15 @@ private:
     DisplayedFloatingPointValue m_inputPowerDb;
     DisplayedFloatingPointValue m_referencePowerDb;
 
-    juce::Label m_debugMessage;
+    LabelledToggle m_measureInputButton;
+    LabelledToggle m_measureReferenceButton;
 
-    float value;
+    LabelledToggle m_applyGainButton;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> m_inputButtonAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> m_referenceButtonAttachment;
+
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> m_applyGainButtonAttachment;
+
+    juce::Label m_debugMessage;
 };

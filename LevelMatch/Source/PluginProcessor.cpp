@@ -3,12 +3,21 @@
 
 LevelMatch::LevelMatch()
     : PluginHelpers::ProcessorBase(getIoLayout())
+    , m_parameterState(*this,
+                       nullptr,
+                       "PARAMETERS",
+                       {std::make_unique<juce::AudioParameterBool>(
+                            kMeasureReference, "Measure Reference LUFS", false),
+                        std::make_unique<juce::AudioParameterBool>(
+                            kMeasureInput, "Measure Input LUFS", false),
+                        std::make_unique<juce::AudioParameterBool>(
+                            kApplyGain, "Apply Matching Gain", false)})
+    , m_status(Status::OK)
     , m_appliedGain(1.0f)
     , m_instantInputPower(0.0f)
     , m_instantReferencePower(0.0f)
-    , m_alpha(0.99f)
+    , m_alpha(1 - 0.999f)
 {
-    parameters.add(*this);
 }
 
 void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
@@ -28,7 +37,7 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
     if (numberOfChannels < NUM_STEREO * 2)
     {
         m_status = static_cast<Status>(numberOfChannels);
-        return;
+        //return;
     }
 
     for (int channel = 0; channel < NUM_STEREO; ++channel)
@@ -46,7 +55,7 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
 
-    if (true)
+    if (m_parameterState.getRawParameterValue(kMeasureInput)->load() == 1.0f)
     {
         m_measureInputPowerDb = 10.0f * std::log10(m_instantInputPower);
         m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
@@ -55,7 +64,7 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
         m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
     }
 
-    if (true)
+    if (m_parameterState.getRawParameterValue(kMeasureReference)->load() == 1.0f)
     {
         m_measureReferencePowerDb = 10.0f * std::log10(m_instantReferencePower);
         m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
@@ -63,7 +72,7 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
         m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
     }
 
-    if (true)
+    if (m_parameterState.getRawParameterValue(kApplyGain)->load() == 0.0f)
     {
         return;
     }
