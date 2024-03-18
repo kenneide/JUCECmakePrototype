@@ -20,6 +20,7 @@ juce_add_plugin("${BaseTargetName}"
         PRODUCT_NAME "LevelMatch")
 
 target_sources(${BaseTargetName} PRIVATE
+        Source/PowerEstimator.cpp
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp)
 

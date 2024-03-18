@@ -49,13 +49,17 @@ public:
     void resized() override
     {
         auto area = getLocalBounds();
-        m_toggle.setBounds(area.removeFromLeft(area.getWidth() / 2));
-        m_label.setBounds(area);
+        m_label.setBounds(area.removeFromLeft(area.getWidth() / 2));
+        m_toggle.setBounds(area);
     }
 
     juce::ToggleButton& getButton() { return m_toggle; }
-
     bool getToggleState() const { return m_toggle.getToggleState(); }
+    void setToggleState(bool state, juce::NotificationType notification)
+    {
+        m_toggle.setToggleState(state, notification);
+    }
+
 private:
     juce::ToggleButton m_toggle;
     juce::Label m_label;
@@ -64,6 +68,7 @@ private:
 class LevelMatchEditor
     : public juce::AudioProcessorEditor
     , public juce::Timer
+    , public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     explicit LevelMatchEditor(LevelMatch&);
@@ -72,6 +77,7 @@ private:
     void paint(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+    void parameterChanged(const juce::String& parameterID, float newValue);
 
     DisplayedFloatingPointValue m_appliedGainDb;
     DisplayedFloatingPointValue m_inputPowerDb;

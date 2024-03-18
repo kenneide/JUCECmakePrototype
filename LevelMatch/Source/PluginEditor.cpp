@@ -40,6 +40,7 @@ LevelMatchEditor::LevelMatchEditor(LevelMatch& p)
             "applyGain",
             m_applyGainButton.getButton());
 
+    processor->getValueStateTree().addParameterListener("applyGain", this);
 
     setSize(400, 300);
 
@@ -63,23 +64,14 @@ void LevelMatchEditor::timerCallback()
 
     switch (processor->getStatus())
     {
-    case LevelMatch::Status::OK:
-        m_debugMessage.setText("STATUS: OK", juce::dontSendNotification);
-        break;
-    case LevelMatch::Status::ONE_CHANNEL:
-        m_debugMessage.setText("STATUS: ONE_CHANNEL", juce::dontSendNotification);
-        break;
-    case LevelMatch::Status::TWO_CHANNELS:
-        m_debugMessage.setText("STATUS: TWO_CHANNELS", juce::dontSendNotification);
-        break;
-    case LevelMatch::Status::THREE_CHANNELS:
-        m_debugMessage.setText("STATUS: THREE_CHANNELS", juce::dontSendNotification);
-        break;
-    case LevelMatch::Status::FOUR_CHANNELS:
-        m_debugMessage.setText("STATUS: FOUR_CHANNELS", juce::dontSendNotification);
-        break;
-    default:
-        jassertfalse;
+        case LevelMatch::Status::OK:
+            m_debugMessage.setText("STATUS: OK", juce::dontSendNotification);
+            break;
+        case LevelMatch::Status::ERROR:
+            m_debugMessage.setText("STATUS: ERROR", juce::dontSendNotification);
+            break;
+        default:
+            jassertfalse;
     }
 }
 
@@ -97,4 +89,21 @@ void LevelMatchEditor::resized()
     m_applyGainButton.setBounds(area.removeFromTop(fractionHeight));
 
     m_debugMessage.setBounds(area.removeFromTop(fractionHeight));
+}
+
+void LevelMatchEditor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "applyGain")
+    {
+        bool applyGainEnabled = newValue == 1.0f;
+        bool measurementEnabled = !applyGainEnabled;
+
+        if (!measurementEnabled)
+        {
+            m_measureInputButton.getButton().setEnabled(false);
+            m_measureInputButton.setToggleState(false, juce::sendNotification);
+            m_measureReferenceButton.getButton().setEnabled(false);
+            m_measureReferenceButton.setToggleState(false, juce::sendNotification);
+        }
+    }
 }

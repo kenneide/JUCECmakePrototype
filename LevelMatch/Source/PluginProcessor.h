@@ -1,6 +1,7 @@
 #pragma once
 
 #include <shared_plugin_helpers/shared_plugin_helpers.h>
+#include "PowerEstimator.h"
 
 class LevelMatch : public PluginHelpers::ProcessorBase
 {
@@ -8,10 +9,7 @@ public:
     enum class Status
     {
         OK = 0,
-        ONE_CHANNEL,
-        TWO_CHANNELS,
-        THREE_CHANNELS,
-        FOUR_CHANNELS
+        ERROR,
     };
 
     LevelMatch();
@@ -43,17 +41,18 @@ private:
     static constexpr auto MAX_GAIN_DB = 24.0f;
     static constexpr auto MIN_GAIN_DB = -24.0f;
 
+    void updateAppliedGain();
+
     juce::AudioProcessorValueTreeState m_parameterState;
 
-    float m_appliedGain;
+    Status m_status;
 
-    float m_instantInputPower;
-    float m_instantReferencePower;
-    float m_alpha;
+    float m_appliedGain;
 
     float m_measureInputPowerDb;
     float m_measureReferencePowerDb;
     float m_appliedGainDb;
 
-    Status m_status;
+    PowerEstimator m_inputPowerEstimator;
+    PowerEstimator m_referencePowerEstimator;
 };

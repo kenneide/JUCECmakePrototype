@@ -12,11 +12,12 @@ LevelMatch::LevelMatch()
                             kMeasureInput, "Measure Input LUFS", false),
                         std::make_unique<juce::AudioParameterBool>(
                             kApplyGain, "Apply Matching Gain", false)})
-    , m_status(Status::OK)
-    , m_appliedGain(1.0f)
-    , m_instantInputPower(0.0f)
-    , m_instantReferencePower(0.0f)
-    , m_alpha(1 - 0.999f)
+    , m_status {Status::OK}
+    , m_appliedGain {1.0f}
+    , m_measureInputPowerDb {0.0f}
+    , m_measureReferencePowerDb {0.0f}
+    , m_inputPowerEstimator {1.0f - 0.999f}
+    , m_referencePowerEstimator {1.0f - 0.999f}
 {
 }
 
@@ -36,40 +37,35 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
     // Ensure we have enough channels for reference
     if (numberOfChannels < NUM_STEREO * 2)
     {
-        m_status = static_cast<Status>(numberOfChannels);
-        //return;
+        m_status = Status::ERROR;
+        return;
     }
 
-    for (int channel = 0; channel < NUM_STEREO; ++channel)
+    m_status = Status::OK;
+
+    float inputMono[numberOfSamples];
+    float referenceMono[numberOfSamples];
+
+    for (int sample = 0; sample < numberOfSamples; ++sample)
     {
-        auto* input = inputPtr[channel];
-        auto* reference = inputPtr[channel + NUM_STEREO];
-
-        for (int sample = 0; sample < numberOfSamples; ++sample)
-        {
-            m_instantInputPower +=
-                m_alpha * (input[sample] * input[sample] - m_instantInputPower);
-            m_instantReferencePower +=
-                m_alpha
-                * (reference[sample] * reference[sample] - m_instantReferencePower);
-        }
+        inputMono[sample] = 0.5f * (inputPtr[0][sample] + inputPtr[1][sample]);
+        referenceMono[sample] = 0.5f * (inputPtr[2][sample] + inputPtr[3][sample]);
     }
+
+    m_inputPowerEstimator.processBlock(inputMono, numberOfSamples);
+    m_referencePowerEstimator.processBlock(referenceMono, numberOfSamples);
 
     if (m_parameterState.getRawParameterValue(kMeasureInput)->load() == 1.0f)
     {
-        m_measureInputPowerDb = 10.0f * std::log10(m_instantInputPower);
-        m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
-
-        m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
-        m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
+        m_measureInputPowerDb = 10.0f * std::log10(m_inputPowerEstimator.getPower());
+        updateAppliedGain();
     }
 
     if (m_parameterState.getRawParameterValue(kMeasureReference)->load() == 1.0f)
     {
-        m_measureReferencePowerDb = 10.0f * std::log10(m_instantReferencePower);
-        m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
-        m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
-        m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
+        m_measureReferencePowerDb =
+            10.0f * std::log10(m_referencePowerEstimator.getPower());
+        updateAppliedGain();
     }
 
     if (m_parameterState.getRawParameterValue(kApplyGain)->load() == 0.0f)
@@ -79,6 +75,13 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
 
     // apply the gain to the input signal to match the lufs of the reference signal
     buffer.applyGain(m_appliedGain);
+}
+
+void LevelMatch::updateAppliedGain()
+{
+    m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
+    m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
+    m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
 }
 
 juce::AudioProcessorEditor* LevelMatch::createEditor()
