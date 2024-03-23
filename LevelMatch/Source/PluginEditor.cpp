@@ -4,12 +4,12 @@
 LevelMatchEditor::LevelMatchEditor(LevelMatch& p)
     : AudioProcessorEditor(&p)
     , m_appliedGainDb("Applied Gain", 0, "dB")
-    , m_inputPowerDb("Input Power", 0, "dB")
-    , m_referencePowerDb("Reference Power", 0, "dB")
-    , m_debugMessage("Debug Message", "STATUS: OK")
+    , m_inputPowerDb("Input Loudness", 0, "dB")
+    , m_referencePowerDb("Reference Loudness", 0, "dB")
     , m_measureInputButton("Measure Input", false)
     , m_measureReferenceButton("Measure Reference", false)
     , m_applyGainButton("Apply Gain", false)
+    , m_debugMessage("Debug Message", "STATUS: OK")
 {
     addAndMakeVisible(m_appliedGainDb);
     addAndMakeVisible(m_inputPowerDb);
@@ -70,6 +70,9 @@ void LevelMatchEditor::timerCallback()
         case LevelMatch::Status::ERROR:
             m_debugMessage.setText("STATUS: ERROR", juce::dontSendNotification);
             break;
+        case LevelMatch::Status::INCORRECT_IO_LAYOUT:
+            m_debugMessage.setText("STATUS: INCORRECT IO LAYOUT", juce::dontSendNotification);
+            break;
         default:
             jassertfalse;
     }
@@ -101,9 +104,14 @@ void LevelMatchEditor::parameterChanged(const juce::String& parameterID, float n
         if (!measurementEnabled)
         {
             m_measureInputButton.getButton().setEnabled(false);
-            m_measureInputButton.setToggleState(false, juce::sendNotification);
             m_measureReferenceButton.getButton().setEnabled(false);
+            m_measureInputButton.setToggleState(false, juce::sendNotification);
             m_measureReferenceButton.setToggleState(false, juce::sendNotification);
+        }
+        else
+        {
+            m_measureInputButton.getButton().setEnabled(true);
+            m_measureReferenceButton.getButton().setEnabled(true);
         }
     }
 }

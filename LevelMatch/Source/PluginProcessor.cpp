@@ -7,18 +7,53 @@ LevelMatch::LevelMatch()
                        nullptr,
                        "PARAMETERS",
                        {std::make_unique<juce::AudioParameterBool>(
-                            kMeasureReference, "Measure Reference LUFS", false),
+                            juce::ParameterID {kMeasureReference, VERSION_HINT},
+                            "Measure Reference LUFS",
+                            false),
                         std::make_unique<juce::AudioParameterBool>(
-                            kMeasureInput, "Measure Input LUFS", false),
+                            juce::ParameterID {kMeasureInput, VERSION_HINT},
+                            "Measure Input LUFS",
+                            false),
                         std::make_unique<juce::AudioParameterBool>(
-                            kApplyGain, "Apply Matching Gain", false)})
+                            juce::ParameterID {kApplyGain, VERSION_HINT},
+                            "Apply Matching Gain",
+                            false)})
     , m_status {Status::OK}
-    , m_appliedGain {1.0f}
-    , m_measureInputPowerDb {0.0f}
-    , m_measureReferencePowerDb {0.0f}
-    , m_inputPowerEstimator {1.0f - 0.999f}
-    , m_referencePowerEstimator {1.0f - 0.999f}
+    , m_inputLoudness {0.0f}
+    , m_referenceLoudness {0.0f}
 {
+}
+
+void LevelMatch::prepareToPlay(double sampleRate, int samplesPerBlock)
+{
+    m_loudnessEstimators.clear();
+    m_gains.clear();
+
+    if (getNumInputChannels() == 0 || getNumOutputChannels() == 0)
+    //|| getNumInputChannels() != 2 * getNumOutputChannels())
+    {
+        m_status = Status::INCORRECT_IO_LAYOUT;
+        return;
+    }
+
+    const auto POWER_TIME_CONSTANT_S = 5.0f;
+    const auto GAIN_TIME_CONSTANT_S = 0.05f;
+
+    auto loudnessAlpha = 1.0f - std::exp(-1.0 / (sampleRate * POWER_TIME_CONSTANT_S));
+    auto gainAlpha = 1.0f - std::exp(-1.0 / (sampleRate * GAIN_TIME_CONSTANT_S));
+
+    for (int i = 0; i < getNumInputChannels(); ++i)
+    {
+        m_loudnessEstimators.push_back(std::make_unique<PowerEstimator>(loudnessAlpha));
+    }
+
+    for (int i = 0; i < getNumOutputChannels(); ++i)
+    {
+        m_gains.push_back(std::make_unique<Gain>());
+        m_gains.back()->setAlpha(gainAlpha);
+    }
+
+    m_status = Status::OK;
 }
 
 void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
@@ -27,44 +62,30 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
 {
     juce::ignoreUnused(midiMessages);
 
-    auto inputPtr = buffer.getArrayOfReadPointers();
-
-    auto numberOfSamples = buffer.getNumSamples();
-    auto numberOfChannels = buffer.getNumChannels();
-
-    static constexpr auto NUM_STEREO = 2; // stereo assumed
-
-    // Ensure we have enough channels for reference
-    if (numberOfChannels < NUM_STEREO * 2)
+    if (m_status != Status::OK)
     {
-        m_status = Status::ERROR;
         return;
     }
 
-    m_status = Status::OK;
+    // get number of input channels
+    auto numberOfChannels = buffer.getNumChannels();
+    auto numberOfSamples = buffer.getNumSamples();
 
-    float inputMono[numberOfSamples];
-    float referenceMono[numberOfSamples];
-
-    for (int sample = 0; sample < numberOfSamples; ++sample)
+    for (int channel = 0; channel < numberOfChannels; ++channel)
     {
-        inputMono[sample] = 0.5f * (inputPtr[0][sample] + inputPtr[1][sample]);
-        referenceMono[sample] = 0.5f * (inputPtr[2][sample] + inputPtr[3][sample]);
+        m_loudnessEstimators[channel]->processBlock(buffer.getReadPointer(channel),
+                                                    numberOfSamples);
     }
-
-    m_inputPowerEstimator.processBlock(inputMono, numberOfSamples);
-    m_referencePowerEstimator.processBlock(referenceMono, numberOfSamples);
 
     if (m_parameterState.getRawParameterValue(kMeasureInput)->load() == 1.0f)
     {
-        m_measureInputPowerDb = 10.0f * std::log10(m_inputPowerEstimator.getPower());
+        updateInputLoudness();
         updateAppliedGain();
     }
 
     if (m_parameterState.getRawParameterValue(kMeasureReference)->load() == 1.0f)
     {
-        m_measureReferencePowerDb =
-            10.0f * std::log10(m_referencePowerEstimator.getPower());
+        updateReferenceLoudness();
         updateAppliedGain();
     }
 
@@ -73,15 +94,47 @@ void LevelMatch::processBlock(juce::AudioBuffer<float>& buffer,
         return;
     }
 
-    // apply the gain to the input signal to match the lufs of the reference signal
-    buffer.applyGain(m_appliedGain);
+    for (size_t channel = 0; channel < getNumOutputChannels(); ++channel)
+    {
+        m_gains[channel]->processBlock(buffer.getWritePointer(channel), numberOfSamples);
+    }
+}
+
+void LevelMatch::updateInputLoudness()
+{
+    m_inputLoudness = 0.0f;
+
+    size_t inputChannelStart = 0;
+    size_t inputChannelEnd = getMainBusNumInputChannels() / 2;
+
+    for (size_t channel = inputChannelStart; channel < inputChannelEnd; ++channel)
+    {
+        m_inputLoudness += m_loudnessEstimators[channel]->getLoudness();
+    }
+}
+
+void LevelMatch::updateReferenceLoudness()
+{
+    m_referenceLoudness = 0.0f;
+
+    size_t referenceChannelStart = getMainBusNumInputChannels() / 2;
+    size_t referenceChannelEnd = getMainBusNumInputChannels();
+
+    for (size_t channel = referenceChannelStart; channel < referenceChannelEnd; ++channel)
+    {
+        m_referenceLoudness += m_loudnessEstimators[channel]->getLoudness();
+    }
 }
 
 void LevelMatch::updateAppliedGain()
 {
-    m_appliedGainDb = m_measureReferencePowerDb - m_measureInputPowerDb;
+    m_appliedGainDb = m_referenceLoudness - m_inputLoudness;
     m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
-    m_appliedGain = std::pow(10.0f, m_appliedGainDb / 20.0f);
+
+    for (size_t channel = 0; channel < getMainBusNumOutputChannels(); ++channel)
+    {
+        m_gains[channel]->setGainDb(m_appliedGainDb);
+    }
 }
 
 juce::AudioProcessorEditor* LevelMatch::createEditor()
@@ -135,21 +188,6 @@ void LevelMatch::setStateInformation(const void* data, int sizeInBytes)
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
     return new LevelMatch();
-}
-
-bool LevelMatch::isBusesLayoutSupported(const BusesLayout& layouts) const
-{
-    return true;
-
-    juce::AudioChannelSet inputChannels = layouts.getMainInputChannelSet();
-    juce::AudioChannelSet outputChannels = layouts.getMainOutputChannelSet();
-
-    if (inputChannels.size() == 4 && outputChannels.size() == 2)
-    {
-        return true;
-    }
-
-    return false;
 }
 
 juce::AudioProcessor::BusesProperties LevelMatch::getIoLayout()

@@ -77,7 +77,7 @@ private:
     void paint(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
-    void parameterChanged(const juce::String& parameterID, float newValue);
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
 
     DisplayedFloatingPointValue m_appliedGainDb;
     DisplayedFloatingPointValue m_inputPowerDb;

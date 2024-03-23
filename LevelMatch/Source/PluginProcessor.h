@@ -1,7 +1,9 @@
 #pragma once
 
 #include <shared_plugin_helpers/shared_plugin_helpers.h>
+
 #include "PowerEstimator.h"
+#include "Gain.h"
 
 class LevelMatch : public PluginHelpers::ProcessorBase
 {
@@ -10,6 +12,7 @@ public:
     {
         OK = 0,
         ERROR,
+        INCORRECT_IO_LAYOUT
     };
 
     LevelMatch();
@@ -21,17 +24,19 @@ public:
     void getStateInformation(juce::MemoryBlock& destData) override;
     void setStateInformation(const void* data, int sizeInBytes) override;
 
-    bool isBusesLayoutSupported (const BusesLayout&) const override;
+    void prepareToPlay(double sampleRate, int samplesPerBlock) override;
 
     float getAppliedGainDb() const { return m_appliedGainDb; }
-    float getInputPowerDb() const { return m_measureInputPowerDb; }
-    float getReferencePowerDb() const { return m_measureReferencePowerDb; }
+    float getInputPowerDb() const { return m_inputLoudness; }
+    float getReferencePowerDb() const { return m_referenceLoudness; }
 
     Status getStatus() const { return m_status; }
 
     juce::AudioProcessorValueTreeState& getValueStateTree() { return m_parameterState; }
 
 private:
+    static constexpr auto VERSION_HINT = 1;
+
     static constexpr auto kMeasureReference = "measureReference";
     static constexpr auto kMeasureInput = "measureInput";
     static constexpr auto kApplyGain = "applyGain";
@@ -41,18 +46,18 @@ private:
     static constexpr auto MAX_GAIN_DB = 24.0f;
     static constexpr auto MIN_GAIN_DB = -24.0f;
 
+    void updateInputLoudness();
+    void updateReferenceLoudness();
     void updateAppliedGain();
 
     juce::AudioProcessorValueTreeState m_parameterState;
 
     Status m_status;
 
-    float m_appliedGain;
-
-    float m_measureInputPowerDb;
-    float m_measureReferencePowerDb;
+    float m_inputLoudness;
+    float m_referenceLoudness;
     float m_appliedGainDb;
 
-    PowerEstimator m_inputPowerEstimator;
-    PowerEstimator m_referencePowerEstimator;
+    std::vector<std::unique_ptr<PowerEstimator>> m_loudnessEstimators;
+    std::vector<std::unique_ptr<Gain>> m_gains;
 };
