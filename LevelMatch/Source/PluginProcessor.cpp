@@ -30,27 +30,19 @@ void LevelMatch::prepareToPlay(double sampleRate, int samplesPerBlock)
     m_gains.clear();
 
     if (getNumInputChannels() == 0 || getNumOutputChannels() == 0)
-    //|| getNumInputChannels() != 2 * getNumOutputChannels())
     {
         m_status = Status::INCORRECT_IO_LAYOUT;
         return;
     }
 
-    const auto POWER_TIME_CONSTANT_S = 5.0f;
-    const auto GAIN_TIME_CONSTANT_S = 0.05f;
-
-    auto loudnessAlpha = 1.0f - std::exp(-1.0 / (sampleRate * POWER_TIME_CONSTANT_S));
-    auto gainAlpha = 1.0f - std::exp(-1.0 / (sampleRate * GAIN_TIME_CONSTANT_S));
-
     for (int i = 0; i < getNumInputChannels(); ++i)
     {
-        m_loudnessEstimators.push_back(std::make_unique<PowerEstimator>(loudnessAlpha));
+        m_loudnessEstimators.push_back(std::make_unique<LoudnessEstimator>(sampleRate));
     }
 
     for (int i = 0; i < getNumOutputChannels(); ++i)
     {
-        m_gains.push_back(std::make_unique<Gain>());
-        m_gains.back()->setAlpha(gainAlpha);
+        m_gains.push_back(std::make_unique<Gain>(sampleRate));
     }
 
     m_status = Status::OK;
@@ -104,12 +96,17 @@ void LevelMatch::updateInputLoudness()
 {
     m_inputLoudness = 0.0f;
 
-    size_t inputChannelStart = 0;
-    size_t inputChannelEnd = getMainBusNumInputChannels() / 2;
+    auto inputChannelStart = 0;
+    auto inputChannelEnd = getMainBusNumInputChannels() / 2;
 
-    for (size_t channel = inputChannelStart; channel < inputChannelEnd; ++channel)
+    for (auto channel = inputChannelStart; channel < inputChannelEnd; ++channel)
     {
         m_inputLoudness += m_loudnessEstimators[channel]->getLoudness();
+    }
+
+    if (m_inputLoudness < MIN_LOUDNESS_DB)
+    {
+        m_inputLoudness = MIN_LOUDNESS_DB;
     }
 }
 
@@ -117,12 +114,17 @@ void LevelMatch::updateReferenceLoudness()
 {
     m_referenceLoudness = 0.0f;
 
-    size_t referenceChannelStart = getMainBusNumInputChannels() / 2;
-    size_t referenceChannelEnd = getMainBusNumInputChannels();
+    auto referenceChannelStart = getMainBusNumInputChannels() / 2;
+    auto referenceChannelEnd = getMainBusNumInputChannels();
 
-    for (size_t channel = referenceChannelStart; channel < referenceChannelEnd; ++channel)
+    for (auto channel = referenceChannelStart; channel < referenceChannelEnd; ++channel)
     {
         m_referenceLoudness += m_loudnessEstimators[channel]->getLoudness();
+    }
+
+    if (m_referenceLoudness < MIN_LOUDNESS_DB)
+    {
+        m_referenceLoudness = MIN_LOUDNESS_DB;
     }
 }
 
@@ -131,7 +133,7 @@ void LevelMatch::updateAppliedGain()
     m_appliedGainDb = m_referenceLoudness - m_inputLoudness;
     m_appliedGainDb = std::clamp(m_appliedGainDb, MIN_GAIN_DB, MAX_GAIN_DB);
 
-    for (size_t channel = 0; channel < getMainBusNumOutputChannels(); ++channel)
+    for (auto channel = 0; channel < getMainBusNumOutputChannels(); ++channel)
     {
         m_gains[channel]->setGainDb(m_appliedGainDb);
     }

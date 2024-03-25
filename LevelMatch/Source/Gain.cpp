@@ -1,26 +1,28 @@
 #include "Gain.h"
 
+#include "DspHelpers.h"
+
 #include <cmath>
 #include <cassert>
 
-Gain::Gain(float gainDb)
-    : m_gain(0.0f)
-    , m_smoothGain(0.0f)
-    , m_alpha(0.99f)
+Gain::Gain(float samplerate)
+    : m_gain {0.0f}
+    , m_smoothGain {1.0f}
+    , m_alpha {DspHelpers::msToCoefficient(DEFAULT_TIME_CONSTANT_MS, samplerate)}
 {
-    setGainDb(gainDb);
+    setGainDb(DEFAULT_GAIN_DB);
     m_smoothGain = m_gain;
 }
 
 float Gain::getGainDb() const
 {
-    return 20.0f * std::log10(m_gain);
+    return DspHelpers::linearToDb(m_gain);
 }
 
 void Gain::setGainDb(float gainDb)
 {
     assert(gainDb >= MIN_GAIN_DB && gainDb <= MAX_GAIN_DB);
-    m_gain = std::pow(10.0f, gainDb / 20.0f);
+    m_gain = DspHelpers::dbToLinear(gainDb);
 }
 
 void Gain::processBlock(float* buffer, int numSamples)

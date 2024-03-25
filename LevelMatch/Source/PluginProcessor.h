@@ -2,7 +2,7 @@
 
 #include <shared_plugin_helpers/shared_plugin_helpers.h>
 
-#include "PowerEstimator.h"
+#include "LoudnessEstimator.h"
 #include "Gain.h"
 
 class LevelMatch : public PluginHelpers::ProcessorBase
@@ -46,6 +46,8 @@ private:
     static constexpr auto MAX_GAIN_DB = 24.0f;
     static constexpr auto MIN_GAIN_DB = -24.0f;
 
+    static constexpr auto MIN_LOUDNESS_DB = -70.0f;
+
     void updateInputLoudness();
     void updateReferenceLoudness();
     void updateAppliedGain();
@@ -58,6 +60,6 @@ private:
     float m_referenceLoudness;
     float m_appliedGainDb;
 
-    std::vector<std::unique_ptr<PowerEstimator>> m_loudnessEstimators;
+    std::vector<std::unique_ptr<LoudnessEstimator>> m_loudnessEstimators;
     std::vector<std::unique_ptr<Gain>> m_gains;
 };
