@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "LanczosResampler.h"
+#include "BiquadCascade.h"
 
 class LoudnessEstimator
 {
@@ -22,4 +23,5 @@ private:
     float m_alpha;
 
     std::unique_ptr<LanczosResampler> m_resampler;
+    std::unique_ptr<BiquadCascade> m_kWeight;
 };
