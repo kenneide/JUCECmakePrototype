@@ -1,17 +1,18 @@
 #pragma once
 
-class PowerEstimator
+class LoudnessEstimator
 {
 public:
-    PowerEstimator(float alpha = 0.99f);
-    ~PowerEstimator() = default;
+    LoudnessEstimator(float samplerate);
+    ~LoudnessEstimator() = default;
 
     float getLoudness() const;
-    float getPower() const;
 
     void processBlock(const float* buffer, int numSamples);
 
 private:
+    static constexpr auto DEFAULT_TIME_CONSTANT_MS = 5000.0f;
+
     float m_instantPower;
     float m_alpha;
 };
