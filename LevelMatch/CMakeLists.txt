@@ -20,6 +20,7 @@ juce_add_plugin("${BaseTargetName}"
         PRODUCT_NAME "LevelMatch")
 
 target_sources(${BaseTargetName} PRIVATE
+        Source/LanczosResampler.cpp
         Source/DspHelpers.cpp
         Source/Gain.cpp
         Source/LoudnessEstimator.cpp
